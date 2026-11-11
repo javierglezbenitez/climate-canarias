@@ -1,0 +1,11 @@
+data/raw/
+data/processed/
+python/.venv/
+__pycache__/
+*.pyc
+java/target/
+.idea/
+.vscode/
+*.nc
+*.zip
+.env

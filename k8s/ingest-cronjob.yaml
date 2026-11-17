@@ -1,0 +1,63 @@
+# Actualización periódica: el día 10 de cada mes a las 06:00 UTC refresca el año en curso
+# (con --force sobrescribe el objeto del año actual, que va ganando meses).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ingest-monthly
+  namespace: climate
+  labels:
+    app.kubernetes.io/name: ingest
+    app.kubernetes.io/part-of: climate-canarias
+spec:
+  schedule: "0 6 10 * *"
+  timeZone: "Etc/UTC"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 7200
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: ingest
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: ingest
+              image: climate-ingest:0.1.0
+              imagePullPolicy: IfNotPresent
+              args: ["--force"]
+              env:
+                - name: S3_ENDPOINT
+                  value: "http://minio.climate.svc.cluster.local:9000"
+                - name: S3_BUCKET
+                  value: "bronze"
+              envFrom:
+                - secretRef:
+                    name: cds-credentials
+                - secretRef:
+                    name: s3-credentials
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  memory: 512Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}

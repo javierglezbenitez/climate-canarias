@@ -1,0 +1,5 @@
+# Copia este fichero a terraform.tfvars (que NO se sube a git) y rellena los valores.
+minio_root_password = "cambia-esta-contrasena"
+
+# Tu clave personal del CDS: la misma que tienes en ~/.cdsapirc (línea "key: ...")
+cds_api_key = "pega-aqui-tu-clave-del-cds"

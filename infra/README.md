@@ -29,3 +29,26 @@ Deben existir los buckets `bronze`, `silver` y `gold`.
 ```powershell
 terraform destroy
 ```
+
+## Ingesta a bronze (Fase 2, paso 2)
+
+1. Añade tu clave del CDS a `infra/terraform/terraform.tfvars` (`cds_api_key = "..."`) y ejecuta
+   `terraform apply`: crea los Secrets `cds-credentials` y `s3-credentials` en el cluster.
+2. Construye la imagen y cárgala en kind (el cluster no ve las imágenes locales de Docker):
+   ```powershell
+   cd python
+   docker build -t climate-ingest:0.1.0 -f Dockerfile.ingest .
+   kind load docker-image climate-ingest:0.1.0 --name climate
+   ```
+3. Carga inicial del histórico:
+   ```powershell
+   cd ..
+   kubectl apply -f k8s\ingest-backfill-job.yaml
+   kubectl -n climate logs -f job/ingest-backfill
+   ```
+4. Comprueba en la consola de MinIO que `bronze/era5land/t2m_monthly/` tiene los NetCDF.
+5. Actualización mensual automática:
+   ```powershell
+   kubectl apply -f k8s\ingest-cronjob.yaml
+   kubectl -n climate create job --from=cronjob/ingest-monthly ingest-prueba   # lanzarlo ya, para probar
+   ```

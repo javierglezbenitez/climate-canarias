@@ -17,10 +17,7 @@ from pathlib import Path
 import cdsapi
 import xarray as xr
 
-DATASET = "reanalysis-era5-land-monthly-means"
-
-# Caja que cubre el archipiélago canario: [Norte, Oeste, Sur, Este]
-CANARIAS_AREA = [29.5, -18.5, 27.5, -13.2]
+from cds_common import DATASET, build_request
 
 RAW_DIR = Path(__file__).resolve().parent.parent / "data" / "raw"
 
@@ -37,16 +34,7 @@ def download_chunk(client: cdsapi.Client, start: int, end: int, force: bool) -> 
         log.info("Ya existe %s, se omite", target.name)
         return target
 
-    request = {
-        "variable": ["2m_temperature"],
-        "product_type": "monthly_averaged_reanalysis",
-        "year": [str(y) for y in range(start, end + 1)],
-        "month": [f"{m:02d}" for m in range(1, 13)],
-        "time": "00:00",
-        "area": CANARIAS_AREA,
-        "data_format": "netcdf",
-        "download_format": "unarchived",
-    }
+    request = build_request(start, end)
     log.info("Solicitando %d-%d al CDS (puede tardar en cola)...", start, end)
     tmp = target.with_suffix(".part")
     client.retrieve(DATASET, request, str(tmp))

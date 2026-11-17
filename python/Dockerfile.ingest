@@ -1,0 +1,17 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+COPY requirements-ingest.txt .
+RUN pip install -r requirements-ingest.txt
+
+COPY cds_common.py ingest_bronze.py ./
+
+# Usuario sin privilegios
+USER 10001
+
+ENTRYPOINT ["python", "ingest_bronze.py"]

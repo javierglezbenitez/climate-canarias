@@ -33,6 +33,18 @@ variable "minio_root_password" {
   }
 }
 
+variable "cds_api_url" {
+  description = "URL de la API del Climate Data Store"
+  type        = string
+  default     = "https://cds.climate.copernicus.eu/api"
+}
+
+variable "cds_api_key" {
+  description = "Tu clave personal del CDS (la misma que pusiste en ~/.cdsapirc)"
+  type        = string
+  sensitive   = true
+}
+
 variable "minio_image_repository" {
   description = "Imagen del servidor S3. quay.io/minio/minio ya no se puede descargar sin cuenta; esta es una réplica comunitaria que incluye también el cliente mc"
   type        = string

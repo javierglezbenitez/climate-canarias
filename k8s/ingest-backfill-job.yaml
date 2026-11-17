@@ -1,0 +1,58 @@
+# Carga inicial: descarga todo el histórico (1950 hasta el último mes completo) a bronze.
+# Se lanza a mano una vez:  kubectl apply -f k8s/ingest-backfill-job.yaml
+# Es idempotente: si se repite, omite los bloques que ya existen en el bucket.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ingest-backfill
+  namespace: climate
+  labels:
+    app.kubernetes.io/name: ingest
+    app.kubernetes.io/part-of: climate-canarias
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 14400        # 4 h máximo (la cola del CDS puede ser lenta)
+  ttlSecondsAfterFinished: 86400      # se borra solo al día siguiente
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ingest
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ingest
+          image: climate-ingest:0.1.0
+          imagePullPolicy: IfNotPresent   # la imagen se carga en kind con `kind load docker-image`
+          args: ["--start", "1950"]
+          env:
+            - name: S3_ENDPOINT
+              value: "http://minio.climate.svc.cluster.local:9000"
+            - name: S3_BUCKET
+              value: "bronze"
+          envFrom:
+            - secretRef:
+                name: cds-credentials
+            - secretRef:
+                name: s3-credentials
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

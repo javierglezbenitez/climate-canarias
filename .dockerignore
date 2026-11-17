@@ -1,0 +1,16 @@
+# Se usa cuando el contexto de construcción es la raíz del repo (imagen silver).
+# Excluye datos, estado de Terraform y secretos para que nunca entren en una imagen.
+.git
+.idea
+.vscode
+data/
+**/.venv
+**/__pycache__
+java/target/
+infra/
+k8s/
+*.nc
+*.zip
+.env
+**/terraform.tfvars
+**/*.tfstate*

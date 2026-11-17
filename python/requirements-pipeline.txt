@@ -1,0 +1,7 @@
+boto3>=1.34
+xarray>=2025.1.0
+netCDF4>=1.7.0
+numpy>=1.26
+pandas>=2.2
+zarr>=3.0.0
+pyarrow>=15

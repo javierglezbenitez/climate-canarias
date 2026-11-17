@@ -52,3 +52,29 @@ terraform destroy
    kubectl apply -f k8s\ingest-cronjob.yaml
    kubectl -n climate create job --from=cronjob/ingest-monthly ingest-prueba   # lanzarlo ya, para probar
    ```
+
+## Capa silver (Fase 3, paso 1)
+
+Valida con Java cada NetCDF de `bronze` y los unifica en un cubo Zarr en `silver`.
+La imagen se construye desde la **raíz del repositorio** (necesita `java/` y `python/`):
+```powershell
+cd C:\Users\cgsos\Documents\climate-canarias
+docker build -t climate-pipeline:0.2.0 -f python\Dockerfile.pipeline .
+kind load docker-image climate-pipeline:0.2.0 --name climate
+kubectl -n climate delete job silver-transform --ignore-not-found
+kubectl apply -f k8s\silver-job.yaml
+kubectl -n climate logs -f job/silver-transform
+```
+Resultado: `silver/era5land/t2m_monthly.zarr` en MinIO. Si algún NetCDF no pasa el validador,
+el Job aborta sin escribir nada (puerta de calidad estricta).
+
+## Capa gold (Fase 3, paso 2)
+
+Calcula anomalías (base 1991-2020), tendencias y rejillas por década y las guarda en Parquet
+en `gold/era5land/indicators/`. Usa la **misma imagen** que silver (`climate-pipeline`):
+```powershell
+kubectl -n climate delete job gold-indicators --ignore-not-found
+kubectl apply -f k8s\gold-job.yaml
+kubectl -n climate logs -f job/gold-indicators
+```
+Los años incompletos (el año en curso) se marcan y no entran en tendencias ni en medias por década.

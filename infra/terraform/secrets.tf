@@ -22,6 +22,7 @@ resource "kubernetes_secret" "s3_credentials" {
   }
 
   data = {
+    S3_ENDPOINT   = "http://minio.${var.namespace}.svc.cluster.local:9000"
     S3_ACCESS_KEY = var.minio_root_user
     S3_SECRET_KEY = var.minio_root_password
   }

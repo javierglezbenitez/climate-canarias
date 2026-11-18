@@ -59,8 +59,8 @@ Valida con Java cada NetCDF de `bronze` y los unifica en un cubo Zarr en `silver
 La imagen se construye desde la **raíz del repositorio** (necesita `java/` y `python/`):
 ```powershell
 cd C:\Users\cgsos\Documents\climate-canarias
-docker build -t climate-pipeline:0.2.0 -f python\Dockerfile.pipeline .
-kind load docker-image climate-pipeline:0.2.0 --name climate
+docker build -t climate-pipeline:0.3.0 -f python\Dockerfile.pipeline .
+kind load docker-image climate-pipeline:0.3.0 --name climate
 kubectl -n climate delete job silver-transform --ignore-not-found
 kubectl apply -f k8s\silver-job.yaml
 kubectl -n climate logs -f job/silver-transform
@@ -78,3 +78,33 @@ kubectl apply -f k8s\gold-job.yaml
 kubectl -n climate logs -f job/gold-indicators
 ```
 Los años incompletos (el año en curso) se marcan y no entran en tendencias ni en medias por década.
+
+## Orquestación con Dagster (Fase 3, paso 3)
+
+Dagster encadena ingesta -> validación Java -> silver -> gold, con historial, checks de calidad
+y una programación mensual (día 10, 06:00 UTC). Se despliega con el chart oficial de Helm desde Terraform;
+su base de datos es un PostgreSQL oficial que también despliega Terraform (`infra/terraform/dagster.tf`).
+
+```powershell
+# 1. Reconstruir la imagen (ahora incluye Dagster) y cargarla en kind
+cd C:\Users\cgsos\Documents\climate-canarias
+docker build -t climate-pipeline:0.3.0 -f python\Dockerfile.pipeline .
+kind load docker-image climate-pipeline:0.3.0 --name climate
+
+# 2. Desplegar (init de nuevo: hay un provider nuevo, `random`)
+cd infra\terraform
+terraform init
+terraform apply
+kubectl -n climate get pods -w            # esperar a que todo esté Running (varios minutos)
+
+# 3. Abrir la interfaz de Dagster en http://localhost:8080
+$pod = kubectl -n climate get pods -l "app.kubernetes.io/name=dagster,app.kubernetes.io/instance=dagster,component=dagster-webserver" -o jsonpath="{.items[0].metadata.name}"
+kubectl -n climate port-forward $pod 8080:80
+```
+En la interfaz: **Assets** -> *Materialize all*. Para una carga completa desde 1950, en el panel de
+configuración del asset `bronze_era5land` usa `start: 1950`.
+
+Cuando Dagster funcione, borra el CronJob antiguo para no duplicar la ingesta mensual:
+```powershell
+kubectl -n climate delete cronjob ingest-monthly
+```

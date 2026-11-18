@@ -128,20 +128,23 @@ def upload_zarr(s3, bucket: str, local: Path) -> None:
     log.info("Subido s3://%s/%s (%d objetos)", bucket, SILVER_KEY, len(new_keys))
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--skip-invalid", action="store_true", help="omite los ficheros que no pasen el validador en vez de abortar")
-    args = parser.parse_args()
+class SilverError(RuntimeError):
+    """Fallo controlado de la capa silver (puerta de calidad, bronze vacío...)."""
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+def run(skip_invalid: bool = False) -> dict:
+    """Valida y unifica bronze en silver. Devuelve estadísticas del cubo resultante.
+
+    Lanza SilverError si no hay datos o algún fichero no pasa el validador
+    (salvo skip_invalid), y ValueError si la serie temporal tiene huecos.
+    """
     bronze = os.environ.get("S3_BUCKET_BRONZE", "bronze")
     silver = os.environ.get("S3_BUCKET_SILVER", "silver")
 
     s3 = s3_client()
     keys = [k for k in list_keys(s3, bronze, BRONZE_PREFIX) if k.endswith(".nc")]
     if not keys:
-        log.error("No hay NetCDF en s3://%s/%s", bronze, BRONZE_PREFIX)
-        return 1
+        raise SilverError(f"No hay NetCDF en s3://{bronze}/{BRONZE_PREFIX}")
     log.info("%d ficheros en bronze", len(keys))
 
     parts: list[xr.Dataset] = []
@@ -157,12 +160,10 @@ def main() -> int:
             parts.append(standardize(local))
             local.unlink()
 
-        if invalid and not args.skip_invalid:
-            log.error("Ficheros inválidos, no se escribe silver: %s", ", ".join(invalid))
-            return 1
+        if invalid and not skip_invalid:
+            raise SilverError("Ficheros inválidos, no se escribe silver: " + ", ".join(invalid))
         if not parts:
-            log.error("Ningún fichero válido")
-            return 1
+            raise SilverError("Ningún fichero válido")
 
         ds = merge(parts)
         check_continuity(ds)
@@ -173,6 +174,26 @@ def main() -> int:
         upload_zarr(s3, silver, write_zarr(ds, Path(tmp)))
 
     log.info("Silver completada")
+    return {
+        "files": len(keys),
+        "invalid_files": invalid,
+        "months": len(index),
+        "first_month": str(index[0].date()),
+        "last_month": str(index[-1].date()),
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--skip-invalid", action="store_true", help="omite los ficheros que no pasen el validador en vez de abortar")
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    try:
+        run(args.skip_invalid)
+    except SilverError as e:
+        log.error("%s", e)
+        return 1
     return 0
 
 

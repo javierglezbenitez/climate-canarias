@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: gold
-          image: climate-pipeline:0.2.0
+          image: climate-pipeline:0.3.0
           imagePullPolicy: IfNotPresent   # la imagen se carga en kind con `kind load docker-image`
           command: ["python", "gold_indicators.py"]
           env:

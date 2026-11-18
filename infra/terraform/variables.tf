@@ -62,3 +62,15 @@ variable "minio_storage_size" {
   type        = string
   default     = "5Gi"
 }
+
+variable "dagster_chart_version" {
+  description = "Versión del chart de Helm de Dagster. Debe coincidir con la de los paquetes dagster de requirements-pipeline.txt"
+  type        = string
+  default     = "1.13.30"
+}
+
+variable "pipeline_image_tag" {
+  description = "Tag de la imagen climate-pipeline (la que cargas en kind con `kind load docker-image`)"
+  type        = string
+  default     = "0.3.0"
+}

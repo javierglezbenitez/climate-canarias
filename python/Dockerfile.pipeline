@@ -1,10 +1,10 @@
-# Imagen de los jobs de procesado (silver y gold): Python + Java (validador NetCDF).
-# IMPORTANTE: el contexto de construcción es la RAÍZ del repositorio, porque el
-# Dockerfile necesita tanto java/ como python/:
-#   docker build -t climate-pipeline:0.2.0 -f python/Dockerfile.pipeline .
+# Imagen única de la plataforma: sirve a los Jobs de silver y gold Y como imagen de código
+# de usuario de Dagster. Incluye Python, Java (validador NetCDF) y el código de orquestación.
+# IMPORTANTE: el contexto de construcción es la RAÍZ del repositorio:
+#   docker build -t climate-pipeline:0.3.0 -f python/Dockerfile.pipeline .
 #
-# El ENTRYPOINT por defecto ejecuta la capa silver. El Job de gold lo sustituye
-# con `command: ["python", "gold_indicators.py"]`.
+# No define ENTRYPOINT a propósito: el chart de Dagster arranca el servidor gRPC con sus
+# propios argumentos, y los Jobs de Kubernetes indican `command` de forma explícita.
 
 # --- Etapa 1: compila el validador Java ---
 FROM maven:3.9-eclipse-temurin-17 AS jar
@@ -19,6 +19,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app \
     HOME=/tmp
 
 RUN apt-get update \
@@ -31,8 +32,6 @@ COPY python/requirements-pipeline.txt .
 RUN pip install -r requirements-pipeline.txt
 
 COPY --from=jar /build/target/nc-validator.jar /app/nc-validator.jar
-COPY python/s3_util.py python/silver_transform.py python/gold_indicators.py ./
-
-USER 10001
-
-ENTRYPOINT ["python", "silver_transform.py"]
+COPY python/cds_common.py python/s3_util.py python/ingest_bronze.py \
+     python/silver_transform.py python/gold_indicators.py ./
+COPY orchestration ./orchestration

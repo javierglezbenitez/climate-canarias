@@ -14,5 +14,9 @@ terraform {
       source  = "hashicorp/helm"
       version = "~> 2.14" # la sintaxis de este fichero es la de helm 2.x
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }

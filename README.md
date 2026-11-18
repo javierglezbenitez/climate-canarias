@@ -67,7 +67,7 @@ o paso de CI).
 ## Hoja de ruta
 - [x] Fase 1: ingesta, exploración y validación
 - [x] Fase 2: infraestructura (kind + Terraform + MinIO) e ingesta a bronze con Job/CronJob
-- [ ] Fase 3: pipeline de indicadores orquestado (silver y gold hechos; orquestación pendiente)
+- [ ] Fase 3: pipeline de indicadores orquestado (silver, gold y orquestación con Dagster hechos)
 - [ ] Fase 4: API (Java/Spring Boot) y mapa web
 - [ ] Fase 5: EUMETSAT (LST casi en tiempo real)
 - [ ] Fase 6: nube real, GitOps y observabilidad

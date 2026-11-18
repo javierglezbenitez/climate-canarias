@@ -65,11 +65,12 @@ def object_exists(s3, bucket: str, key: str) -> bool:
         raise
 
 
-def ingest_block(cds, s3, bucket: str, y0: int, y1: int, force: bool) -> None:
+def ingest_block(cds, s3, bucket: str, y0: int, y1: int, force: bool) -> str | None:
+    """Descarga un bloque y lo sube a S3. Devuelve la clave subida, o None si se omitió."""
     key = f"{PREFIX}/{y0}_{y1}.nc"
     if not force and object_exists(s3, bucket, key):
         log.info("s3://%s/%s ya existe, se omite", bucket, key)
-        return
+        return None
 
     request = build_request(y0, y1)
     with tempfile.TemporaryDirectory() as tmp:
@@ -86,6 +87,38 @@ def ingest_block(cds, s3, bucket: str, y0: int, y1: int, force: bool) -> None:
             ExtraArgs={"Metadata": {"source": "cds-era5land-monthly", "years": f"{y0}-{y1}"}},
         )
     log.info("Subido s3://%s/%s (%d bytes)", bucket, key, size)
+    return key
+
+
+class NothingToIngest(ValueError):
+    """El rango pedido no contiene ningún año con meses completos."""
+
+
+def run(start: int | None = None, end: int | None = None, block: int = 25, force: bool = False) -> list[str]:
+    """Ingesta ERA5-Land a bronze. Devuelve las claves S3 subidas (las omitidas no se incluyen).
+
+    Sin start/end refresca el año en curso. Con start y sin end, llega hasta el último mes completo.
+    """
+    default_year = target_year()
+    first = start if start is not None else default_year
+    last = end if end is not None else (default_year if start is None else date.today().year)
+
+    blocks = split_blocks(first, last, block)
+    if not blocks:
+        raise NothingToIngest(f"No hay nada que ingerir para {first}-{last}")
+
+    bucket = os.environ.get("S3_BUCKET", "bronze")
+    s3 = s3_client()
+    ensure_bucket(s3, bucket)
+    cds = cdsapi.Client()
+
+    uploaded = []
+    for y0, y1 in blocks:
+        key = ingest_block(cds, s3, bucket, y0, y1, force)
+        if key:
+            uploaded.append(key)
+    log.info("Ingesta completada: %d objetos subidos", len(uploaded))
+    return uploaded
 
 
 def main() -> int:
@@ -97,24 +130,11 @@ def main() -> int:
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-
-    default_year = target_year()
-    start = args.start if args.start is not None else default_year
-    end = args.end if args.end is not None else (default_year if args.start is None else date.today().year)
-
-    blocks = split_blocks(start, end, args.block)
-    if not blocks:
-        log.error("No hay nada que ingerir para %d-%d", start, end)
+    try:
+        run(args.start, args.end, args.block, args.force)
+    except NothingToIngest as e:
+        log.error("%s", e)
         return 1
-
-    bucket = os.environ.get("S3_BUCKET", "bronze")
-    s3 = s3_client()
-    ensure_bucket(s3, bucket)
-    cds = cdsapi.Client()
-
-    for y0, y1 in blocks:
-        ingest_block(cds, s3, bucket, y0, y1, args.force)
-    log.info("Ingesta completada")
     return 0
 
 

@@ -162,8 +162,8 @@ def upload_parquet(s3, bucket: str, name: str, df: pd.DataFrame, tmp: Path) -> N
     log.info("Subido s3://%s/%s (%d filas)", bucket, key, len(df))
 
 
-def main() -> int:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+def run() -> dict:
+    """Calcula los indicadores y los sube a gold. Devuelve el resumen de tendencia."""
     silver = os.environ.get("S3_BUCKET_SILVER", "silver")
     gold = os.environ.get("S3_BUCKET_GOLD", "gold")
 
@@ -207,6 +207,14 @@ def main() -> int:
             upload_parquet(s3, gold, name, df, out)
 
     log.info("Gold completada")
+    result = {k: (v.item() if hasattr(v, "item") else v) for k, v in row.to_dict().items()}
+    result["partial_years"] = [int(y) for y in partial]
+    return result
+
+
+def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    run()
     return 0
 
 

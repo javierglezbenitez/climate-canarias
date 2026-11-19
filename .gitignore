@@ -16,3 +16,7 @@ infra/terraform/*.tfstate
 infra/terraform/*.tfstate.*
 infra/terraform/terraform.tfvars
 infra/terraform/crash.log
+
+# Web
+web/node_modules/
+web/dist/

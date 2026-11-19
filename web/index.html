@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Canarias, 75 años de calor</title>
+  <meta name="description" content="Cómo ha cambiado la temperatura del aire en Canarias desde 1950, con datos ERA5-Land de Copernicus. Los datos se consultan con SQL en tu propio navegador." />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="scene" aria-label="Relieve 3D de Canarias con columnas que muestran la anomalía de temperatura"></div>
+
+  <header class="title">
+    <h1>Canarias, 75 años de calor</h1>
+    <p id="headline" aria-live="polite">Cargando datos…</p>
+  </header>
+
+  <aside class="legend" id="legend" aria-label="Leyenda"></aside>
+
+  <section class="dock" aria-label="Controles de tiempo">
+    <div class="dock-row">
+      <button id="play" class="btn" type="button" aria-label="Reproducir décadas">▶ Reproducir</button>
+      <div class="chips" id="decades" role="group" aria-label="Década"></div>
+      <div class="seg" role="group" aria-label="Qué mostrar">
+        <button type="button" class="seg-btn" data-mode="decade" aria-pressed="true">Por década</button>
+        <button type="button" class="seg-btn" data-mode="trend" aria-pressed="false">Tendencia</button>
+      </div>
+    </div>
+    <div class="stripes-wrap">
+      <div id="stripes" class="stripes" aria-hidden="true"></div>
+      <div id="bracket" class="bracket" aria-hidden="true"></div>
+      <div class="stripes-axis"><span id="ax-start"></span><span id="ax-end"></span></div>
+    </div>
+    <p class="note" id="note"></p>
+  </section>
+
+  <button id="sql-toggle" class="btn sql-toggle" type="button" aria-expanded="false" aria-controls="sql">Consultar con SQL</button>
+  <section id="sql" class="sql" hidden aria-label="Consulta SQL sobre los datos">
+    <p class="sql-help">Estas consultas se ejecutan en tu navegador con DuckDB sobre los ficheros Parquet de la capa gold. No hay servidor.</p>
+    <div class="presets" id="presets"></div>
+    <textarea id="sql-input" spellcheck="false" rows="5" aria-label="Consulta SQL"></textarea>
+    <div class="sql-actions">
+      <button id="sql-run" class="btn primary" type="button">Ejecutar</button>
+      <span id="sql-status" role="status"></span>
+    </div>
+    <div class="result" id="sql-result" tabindex="0"></div>
+  </section>
+
+  <p class="credit">Datos: ERA5-Land, Copernicus/ECMWF · Relieve: Terrarium (Mapzen/AWS) · Base: Esri, HERE, Garmin</p>
+  <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

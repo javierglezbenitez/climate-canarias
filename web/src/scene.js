@@ -11,7 +11,7 @@ export const DEM_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/
 const ISLANDS = [
   { name: 'Lanzarote', lon: -13.75, lat: 28.8 },
   { name: 'Fuerteventura', lon: -14.0, lat: 28.15 },
-  { name: 'Gran Canaria', lon: -15.6, lat: 27.6 },
+  { name: 'Gran Canaria', lon: -15.6, lat: 27.55 },
   { name: 'Tenerife', lon: -16.55, lat: 27.95 },
   { name: 'La Gomera', lon: -17.12, lat: 27.85 },
   { name: 'La Palma', lon: -17.85, lat: 28.42 },
@@ -27,7 +27,7 @@ function viewFor(width) {
   const narrow = width < 700;
   return {
     longitude: -15.85,
-    latitude: 28.3,
+    latitude: 28.15,
     zoom: narrow ? 6.4 : 7.6,
     pitch: 55,
     bearing: -18,
@@ -83,9 +83,7 @@ export function createScene({ parent, onHover }) {
       new TextLayer({
         id: 'names',
         data: ISLANDS,
-        extensions: [new TerrainExtension()],
-        terrainDrawMode: 'offset',
-        getPosition: (d) => [d.lon, d.lat],
+        getPosition: (d) => [d.lon, d.lat, 800],
         getText: (d) => d.name,
         getSize: 14,
         getColor: [238, 243, 244, 235],

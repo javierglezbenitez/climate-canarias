@@ -11,8 +11,8 @@ export const DEM_URL = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/
 const ISLANDS = [
   { name: 'Lanzarote', lon: -13.75, lat: 28.8 },
   { name: 'Fuerteventura', lon: -14.0, lat: 28.15 },
-  { name: 'Gran Canaria', lon: -15.6, lat: 27.72 },
-  { name: 'Tenerife', lon: -16.55, lat: 28.05 },
+  { name: 'Gran Canaria', lon: -15.6, lat: 27.6 },
+  { name: 'Tenerife', lon: -16.55, lat: 27.95 },
   { name: 'La Gomera', lon: -17.12, lat: 27.85 },
   { name: 'La Palma', lon: -17.85, lat: 28.42 },
   { name: 'El Hierro', lon: -18.0, lat: 27.52 },
@@ -96,6 +96,7 @@ export function createScene({ parent, onHover }) {
         fontSettings: { sdf: true },
         billboard: true,
         pickable: false,
+        parameters: { depthCompare: 'always', depthWriteEnabled: false },
       }),
     ];
   };

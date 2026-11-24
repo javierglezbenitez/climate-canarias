@@ -24,6 +24,7 @@
       <div class="seg" role="group" aria-label="Qué mostrar">
         <button type="button" class="seg-btn" data-mode="decade" aria-pressed="true">Por década</button>
         <button type="button" class="seg-btn" data-mode="trend" aria-pressed="false">Tendencia</button>
+        <button type="button" class="seg-btn" id="lst-btn" data-mode="lst" aria-pressed="false" hidden>Suelo (satélite)</button>
       </div>
     </div>
     <div class="stripes-wrap">
@@ -46,7 +47,7 @@
     <div class="result" id="sql-result" tabindex="0"></div>
   </section>
 
-  <p class="credit">Datos: ERA5-Land, Copernicus/ECMWF · Relieve: Terrarium (Mapzen/AWS) · Base: Esri, HERE, Garmin</p>
+  <p class="credit">Aire: ERA5-Land, Copernicus/ECMWF · Suelo: Meteosat LST, EUMETSAT LSA SAF (CC BY 4.0), datos procesados · Relieve: Terrarium (Mapzen/AWS) · Base: Esri, HERE, Garmin</p>
   <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
   <script type="module" src="/src/main.js"></script>
 </body>

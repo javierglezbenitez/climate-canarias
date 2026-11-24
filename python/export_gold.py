@@ -14,7 +14,7 @@ from pathlib import Path
 
 from s3_util import list_keys, s3_client
 
-PREFIX = "era5land/indicators/"
+PREFIXES = ["era5land/indicators/", "eumetsat/msg_lst/"]
 
 
 def main() -> int:
@@ -22,9 +22,9 @@ def main() -> int:
     out = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / "web" / "public" / "data"
     out.mkdir(parents=True, exist_ok=True)
     s3 = s3_client()
-    keys = [k for k in list_keys(s3, bucket, PREFIX) if k.endswith(".parquet")]
+    keys = [k for pre in PREFIXES for k in list_keys(s3, bucket, pre) if k.endswith(".parquet")]
     if not keys:
-        print(f"No hay Parquet en s3://{bucket}/{PREFIX}. Ejecuta antes la capa gold.", file=sys.stderr)
+        print(f"No hay Parquet en s3://{bucket}/. Ejecuta antes la capa gold.", file=sys.stderr)
         return 1
     for key in keys:
         dest = out / Path(key).name

@@ -20,3 +20,4 @@ infra/terraform/crash.log
 # Web
 web/node_modules/
 web/dist/
+data/eumetsat_sample/

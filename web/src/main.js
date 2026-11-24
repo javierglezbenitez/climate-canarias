@@ -1,6 +1,6 @@
 import { initDb, loadAll, sql } from './data.js';
-import { createScene, SCALE } from './scene.js';
-import { diverging, css, gradientCss } from './colors.js';
+import { createScene, SCALE, LST_RANGE } from './scene.js';
+import { diverging, css, gradientCss, heatGradientCss } from './colors.js';
 
 const $ = (id) => document.getElementById(id);
 const fmt = (v, d = 2) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(d);
@@ -9,6 +9,8 @@ const PRESETS = [
   ['Anomalía por década', `SELECT decade, round(avg(anomaly_c), 3) AS anomalia_c\nFROM decadal_anomaly_grid\nGROUP BY decade ORDER BY decade`],
   ['Las celdas que más se calientan', `SELECT latitude, longitude, trend_c_per_decade\nFROM trend_grid\nORDER BY trend_c_per_decade DESC\nLIMIT 10`],
   ['Los 10 años más cálidos', `SELECT year, anomaly_c\nFROM annual_anomaly\nWHERE complete\nORDER BY anomaly_c DESC\nLIMIT 10`],
+  ['Suelo: celdas más calientes (satélite)', `SELECT latitude, longitude, lst_mean_c, n_obs\nFROM lst_summer_grid\nORDER BY lst_mean_c DESC\nLIMIT 10`],
+  ['Suelo: media de cada verano (satélite)', `SELECT year, lst_mean_c, n_scenes\nFROM lst_summer_yearly\nORDER BY year`],
   ['Meses por encima de +1 °C', `SELECT year, count(*) AS meses\nFROM monthly_anomaly\nWHERE anomaly_c > 1\nGROUP BY year ORDER BY year DESC\nLIMIT 15`],
 ];
 
@@ -16,16 +18,32 @@ let data, scene, mode = 'decade', decade = 2020, playing = false, timer = null;
 let decades = [];
 
 function cellsFor() {
+  if (mode === 'lst') return data.lst.grid.map((r) => ({ lat: r.latitude, lon: r.longitude, value: r.lst_mean_c, n: r.n_obs, total: r.n_total }));
   if (mode === 'trend') return data.trend.map((r) => ({ lat: r.latitude, lon: r.longitude, value: r.trend_c_per_decade }));
   return data.decadal.filter((r) => r.decade === decade).map((r) => ({ lat: r.latitude, lon: r.longitude, value: r.anomaly_c, n: r.n_years }));
 }
 
 function renderHeadline() {
+  if (mode === 'lst') {
+    const g = data.lst.grid;
+    const mean = g.reduce((a, r) => a + r.lst_mean_c, 0) / g.length;
+    $('headline').textContent = `El suelo llega a ${mean.toFixed(1)} °C de media en julio, a las 13:00 UTC (satélite, 2004–2015)`;
+    return;
+  }
   const s = data.summary;
   $('headline').textContent = `${fmt(s.total_warming_c, 1)} °C entre ${s.period_start} y ${s.period_end} · ${fmt(s.trend_c_per_decade)} °C por década`;
 }
 
 function renderLegend() {
+  if (mode === 'lst') {
+    const [lo, hi] = LST_RANGE;
+    $('legend').innerHTML = `
+    <div class="legend-title">Temperatura del suelo</div>
+    <div class="legend-bar" style="background:${heatGradientCss(lo, hi)}"></div>
+    <div class="legend-ticks"><span>${lo}</span><span>${(lo + hi) / 2}</span><span>${hi}</span></div>
+    <div class="legend-unit">°C, media de verano. Altura y color de cada columna.</div>`;
+    return;
+  }
   const max = SCALE[mode];
   const unit = mode === 'trend' ? '°C por década' : '°C respecto a 1991–2020';
   $('legend').innerHTML = `
@@ -36,6 +54,11 @@ function renderLegend() {
 }
 
 function renderNote() {
+  if (mode === 'lst') {
+    $('note').textContent =
+      'Media de julio a las 13:00 UTC, 2004–2015, solo con cielo despejado. Celdas de 0,05° (≈5 km). Es la temperatura del suelo, no la del aire.';
+    return;
+  }
   $('note').textContent =
     mode === 'trend'
       ? `Pendiente lineal 1950–2025 en cada celda de 0,1° (≈9 km).`
@@ -51,10 +74,11 @@ function setDecade(d) {
 
 function refresh() {
   scene.update({ cells: cellsFor(), mode, label: `${mode}-${decade}` });
+  renderHeadline();
   renderLegend();
   renderNote();
-  $('bracket').hidden = mode === 'trend';
-  $('decades').classList.toggle('dim', mode === 'trend');
+  $('bracket').hidden = mode !== 'decade';
+  $('decades').classList.toggle('dim', mode !== 'decade');
 }
 
 function buildStripes() {
@@ -120,7 +144,7 @@ function buildChips() {
 function setMode(m) {
   mode = m;
   document.querySelectorAll('.seg-btn').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
-  if (m === 'trend') stop();
+  if (m !== 'decade') stop();
   refresh();
 }
 
@@ -213,9 +237,11 @@ async function main() {
       if (!o) return hideTip();
       const v = o.value;
       const body =
-        mode === 'trend'
-          ? `${fmt(v)} °C por década`
-          : `${fmt(v)} °C <span class="mut">en la década ${decade}s</span>`;
+        mode === 'lst'
+          ? `${v.toFixed(1)} °C <span class="mut">media de verano (${o.n} de ${o.total} imágenes con cielo despejado)</span>`
+          : mode === 'trend'
+            ? `${fmt(v)} °C por década`
+            : `${fmt(v)} °C <span class="mut">en la década ${decade}s</span>`;
       showTip(o.x, o.y, `<b>${o.lat.toFixed(1)}°N, ${Math.abs(o.lon).toFixed(1)}°O</b><br>${body}`);
     },
   });
@@ -228,6 +254,7 @@ async function main() {
     return;
   }
   decade = Math.max(...data.decadal.map((r) => r.decade));
+  if (data.lst) $('lst-btn').hidden = false;
   renderHeadline();
   buildChips();
   buildStripes();

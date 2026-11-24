@@ -3,6 +3,8 @@ import wasmEh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import workerEh from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
 
 const FILES = ['annual_anomaly', 'trend_summary', 'decadal_anomaly_grid', 'trend_grid', 'monthly_anomaly'];
+const OPTIONAL = ['lst_summer_grid', 'lst_summer_yearly'];
+const loaded = new Set();
 let conn = null;
 
 export async function initDb() {
@@ -16,6 +18,19 @@ export async function initDb() {
     if (!res.ok) throw new Error(`No se pudo cargar ${name}.parquet (${res.status})`);
     await db.registerFileBuffer(`${name}.parquet`, new Uint8Array(await res.arrayBuffer()));
     await conn.query(`CREATE TABLE ${name} AS SELECT * FROM '${name}.parquet'`);
+    loaded.add(name);
+  }
+  // Capa de satélite: opcional (si faltan los ficheros, la web funciona sin ella)
+  for (const name of OPTIONAL) {
+    try {
+      const res = await fetch(`${base}data/${name}.parquet`);
+      if (!res.ok) continue;
+      await db.registerFileBuffer(`${name}.parquet`, new Uint8Array(await res.arrayBuffer()));
+      await conn.query(`CREATE TABLE ${name} AS SELECT * FROM '${name}.parquet'`);
+      loaded.add(name);
+    } catch (e) {
+      console.warn(`Sin capa de satélite (${name})`, e);
+    }
   }
 }
 
@@ -39,5 +54,12 @@ export async function loadAll() {
   const summary = (await sql('SELECT * FROM trend_summary')).rows[0];
   const decadal = (await sql('SELECT decade, n_years, latitude, longitude, anomaly_c FROM decadal_anomaly_grid')).rows;
   const trend = (await sql('SELECT latitude, longitude, trend_c_per_decade FROM trend_grid')).rows;
-  return { annual, summary, decadal, trend };
+  let lst = null;
+  if (loaded.has('lst_summer_grid') && loaded.has('lst_summer_yearly')) {
+    lst = {
+      grid: (await sql('SELECT latitude, longitude, lst_mean_c, lst_max_c, n_obs, n_total FROM lst_summer_grid')).rows,
+      yearly: (await sql('SELECT year, lst_mean_c, n_scenes FROM lst_summer_yearly ORDER BY year')).rows,
+    };
+  }
+  return { annual, summary, decadal, trend, lst };
 }

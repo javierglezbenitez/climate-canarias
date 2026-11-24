@@ -29,3 +29,16 @@ export function gradientCss(max, steps = 24) {
   }
   return `linear-gradient(90deg, ${stops.join(',')})`;
 }
+
+// Rampa secuencial para temperatura absoluta del suelo: gris-ciruela apagado -> naranja -> ámbar claro.
+const HEAT = [[58, 46, 58], [150, 62, 66], [232, 106, 62], [252, 196, 108]];
+export function heat(v, lo, hi) {
+  return ramp(HEAT, (v - lo) / (hi - lo));
+}
+export function heatGradientCss(lo, hi, steps = 24) {
+  const stops = [];
+  for (let i = 0; i <= steps; i++) {
+    stops.push(`${css(heat(lo + ((hi - lo) * i) / steps, lo, hi))} ${(i / steps) * 100}%`);
+  }
+  return `linear-gradient(90deg, ${stops.join(',')})`;
+}

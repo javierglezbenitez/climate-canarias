@@ -2,7 +2,7 @@ import { Deck, MapView, FlyToInterpolator } from '@deck.gl/core';
 import { ColumnLayer, TextLayer } from '@deck.gl/layers';
 import { TerrainLayer } from '@deck.gl/geo-layers';
 import { _TerrainExtension as TerrainExtension } from '@deck.gl/extensions';
-import { diverging } from './colors.js';
+import { diverging, heat } from './colors.js';
 
 // Relieve: teselas Terrarium (AWS Open Data, sin clave). Textura: Esri Canvas World Dark Gray Base (sin clave).
 export const TEXTURE_URL = 'https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
@@ -22,6 +22,7 @@ const EXAGGERATION = 3;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export const SCALE = { decade: 1.2, trend: 0.2 }; // valor que satura la escala de color
+export const LST_RANGE = [15, 50]; // °C: extremos de la escala de temperatura del suelo
 
 function viewFor(width) {
   const narrow = width < 700;
@@ -68,14 +69,17 @@ export function createScene({ parent, onHover }) {
         extensions: [new TerrainExtension()],
         terrainDrawMode: 'offset',
         diskResolution: 6,
-        radius: 4300,
+        radius: state.mode === 'lst' ? 2300 : 4300,
         extruded: true,
         pickable: true,
         autoHighlight: true,
         highlightColor: [255, 255, 255, 90],
         getPosition: (d) => [d.lon, d.lat],
-        getElevation: (d) => Math.max(500, (d.value + (state.mode === 'decade' ? 0.8 : 0.05)) * (state.mode === 'decade' ? 11000 : 60000)),
-        getFillColor: (d) => [...diverging(d.value, max), 235],
+        getElevation: (d) =>
+          state.mode === 'lst'
+            ? Math.max(400, (d.value - 12) * 500)
+            : Math.max(500, (d.value + (state.mode === 'decade' ? 0.8 : 0.05)) * (state.mode === 'decade' ? 11000 : 60000)),
+        getFillColor: (d) => [...(state.mode === 'lst' ? heat(d.value, LST_RANGE[0], LST_RANGE[1]) : diverging(d.value, max)), 235],
         material: { ambient: 0.5, diffuse: 0.7, shininess: 20 },
         transitions: reduceMotion ? {} : { getElevation: 700, getFillColor: 700 },
         updateTriggers: { getElevation: [state.mode, state.label], getFillColor: [state.mode, state.label] },
